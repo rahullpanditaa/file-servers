@@ -2,10 +2,12 @@ package main
 
 import (
 	"database/sql"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
@@ -49,13 +51,16 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 	defer data.Close()
 
+	// determine file extension
 	mediaType := headers.Header.Get("Content-Type")
+	media := strings.Split(mediaType, "/")
+	ext := media[1]
 
-	imgData, err := io.ReadAll(data)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "could not read image data", err)
-		return
-	}
+	// imgData, err := io.ReadAll(data)
+	// if err != nil {
+	// 	respondWithError(w, http.StatusInternalServerError, "could not read image data", err)
+	// 	return
+	// }
 
 	video, err := cfg.db.GetVideo(videoID)
 	if err != nil {
@@ -72,15 +77,30 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// create unique file path
+	filePtr, err := os.Create(filepath.Join(cfg.assetsRoot, video.ID.String()+"."+ext))
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "unable to create file", err)
+		return
+	}
+	defer filePtr.Close()
+
+	_, err = io.Copy(filePtr, data)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "unable to create file", err)
+		return
+	}
+
 	// convert image data ([]byte) to a base64 string
-	imgDataStr := base64.StdEncoding.EncodeToString(imgData)
+	// imgDataStr := base64.StdEncoding.EncodeToString(imgData)
 
 	// create a dataurl
-	imgDataURL := fmt.Sprintf("data:%s;base64,%s", mediaType, imgDataStr)
+	// imgDataURL := fmt.Sprintf("data:%s;base64,%s", mediaType, imgDataStr)
 
 	// safer to mutate the fetched video from db
 	// then update (avoid accidentally zeroing fields not included)
-	video.ThumbnailURL = &imgDataURL
+	thumbnailURL := fmt.Sprintf("http://localhost:%s/assets/%s.%s", cfg.port, video.ID.String(), ext)
+	video.ThumbnailURL = &thumbnailURL
 	video.UpdatedAt = time.Now().UTC()
 
 	if err := cfg.db.UpdateVideo(video); err != nil {
