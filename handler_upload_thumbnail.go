@@ -1,8 +1,11 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
+	"io"
 	"net/http"
+	"time"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/google/uuid"
@@ -28,10 +31,64 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-
 	fmt.Println("uploading thumbnail for video", videoID, "by user", userID)
 
 	// TODO: implement the upload here
 
-	respondWithJSON(w, http.StatusOK, struct{}{})
+	const maxMemory = 10 << 20
+	err = r.ParseMultipartForm(maxMemory)
+	if err != nil {
+		return
+	}
+
+	data, headers, err := r.FormFile("thumbnail")
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "could not retreive file for given form key", err)
+		return
+	}
+	defer data.Close()
+
+	mediaType := headers.Header.Get("Content-Type")
+
+	imgData, err := io.ReadAll(data)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "could not read image data", err)
+		return
+	}
+
+	video, err := cfg.db.GetVideo(videoID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusUnauthorized, "authenticated user not the video owner", nil)
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "unable to retreive video", err)
+		return
+	}
+
+	if userID != video.UserID {
+		respondWithError(w, http.StatusUnauthorized, "invalid user", nil)
+		return
+	}
+
+	th := thumbnail{
+		data:      imgData,
+		mediaType: mediaType,
+	}
+	// cfg.port
+	thumbnailURL := fmt.Sprintf("http://localhost:%s/api/thumbnails/%v", cfg.port, video.ID.String())
+
+	videoThumbnails[video.ID] = th
+
+	// safer to mutate the fetched video from db
+	// then update (avoid accidentally zeroing fields not included)
+	video.ThumbnailURL = &thumbnailURL
+	video.UpdatedAt = time.Now().UTC()
+
+	if err := cfg.db.UpdateVideo(video); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "unable to update video", err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, video)
 }
