@@ -68,11 +68,9 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 
 	// determine file extension
-	mediaType := headers.Header.Get("Content-Type")
-	media := strings.Split(mediaType, "/")
-	ext := media[1]
+	headerValueReceived := headers.Header.Get("Content-Type")
 
-	mediatype, _, err := mime.ParseMediaType(mediaType)
+	mediatype, _, err := mime.ParseMediaType(headerValueReceived)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "unable to get media type from header", nil)
 		return
@@ -81,9 +79,11 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, http.StatusBadRequest, "media type not an image", nil)
 		return
 	}
+	media := strings.Split(mediatype, "/")
+	extension := media[1]
 
 	// create unique file path
-	filePtr, err := os.Create(filepath.Join(cfg.assetsRoot, video.ID.String()+"."+ext))
+	filePtr, err := os.Create(filepath.Join(cfg.assetsRoot, video.ID.String()+"."+extension))
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "unable to create file", err)
 		return
@@ -98,7 +98,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 
 	// safer to mutate the fetched video from db
 	// then update (avoid accidentally zeroing fields not included)
-	thumbnailURL := fmt.Sprintf("http://localhost:%s/assets/%s.%s", cfg.port, video.ID.String(), ext)
+	thumbnailURL := fmt.Sprintf("http://localhost:%s/assets/%s.%s", cfg.port, video.ID.String(), extension)
 	video.ThumbnailURL = &thumbnailURL
 	video.UpdatedAt = time.Now().UTC()
 
