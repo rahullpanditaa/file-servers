@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -51,17 +52,6 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 	defer data.Close()
 
-	// determine file extension
-	mediaType := headers.Header.Get("Content-Type")
-	media := strings.Split(mediaType, "/")
-	ext := media[1]
-
-	// imgData, err := io.ReadAll(data)
-	// if err != nil {
-	// 	respondWithError(w, http.StatusInternalServerError, "could not read image data", err)
-	// 	return
-	// }
-
 	video, err := cfg.db.GetVideo(videoID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -74,6 +64,21 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 
 	if userID != video.UserID {
 		respondWithError(w, http.StatusUnauthorized, "invalid user", nil)
+		return
+	}
+
+	// determine file extension
+	mediaType := headers.Header.Get("Content-Type")
+	media := strings.Split(mediaType, "/")
+	ext := media[1]
+
+	mediatype, _, err := mime.ParseMediaType(mediaType)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "unable to get media type from header", nil)
+		return
+	}
+	if mediatype != "image/jpeg" && mediatype != "image/png" {
+		respondWithError(w, http.StatusBadRequest, "media type not an image", nil)
 		return
 	}
 
@@ -90,12 +95,6 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, http.StatusInternalServerError, "unable to create file", err)
 		return
 	}
-
-	// convert image data ([]byte) to a base64 string
-	// imgDataStr := base64.StdEncoding.EncodeToString(imgData)
-
-	// create a dataurl
-	// imgDataURL := fmt.Sprintf("data:%s;base64,%s", mediaType, imgDataStr)
 
 	// safer to mutate the fetched video from db
 	// then update (avoid accidentally zeroing fields not included)
