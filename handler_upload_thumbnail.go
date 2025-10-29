@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"mime"
@@ -82,8 +84,16 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	media := strings.Split(mediatype, "/")
 	extension := media[1]
 
+	// instead of using videoID to create file path
+	// fill a 32 bit slice with random bytes
+	randomSlice := make([]byte, 32)
+	rand.Read(randomSlice)
+
+	// random string to use as file name
+	randomStr := base64.RawURLEncoding.EncodeToString(randomSlice)
+
 	// create unique file path
-	filePtr, err := os.Create(filepath.Join(cfg.assetsRoot, video.ID.String()+"."+extension))
+	filePtr, err := os.Create(filepath.Join(cfg.assetsRoot, randomStr+"."+extension))
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "unable to create file", err)
 		return
@@ -98,7 +108,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 
 	// safer to mutate the fetched video from db
 	// then update (avoid accidentally zeroing fields not included)
-	thumbnailURL := fmt.Sprintf("http://localhost:%s/assets/%s.%s", cfg.port, video.ID.String(), extension)
+	thumbnailURL := fmt.Sprintf("http://localhost:%s/assets/%s.%s", cfg.port, randomStr, extension)
 	video.ThumbnailURL = &thumbnailURL
 	video.UpdatedAt = time.Now().UTC()
 
