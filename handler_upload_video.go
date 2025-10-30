@@ -99,10 +99,15 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		respondWithError(w, http.StatusInternalServerError, "unable to copy uploaded file to local file", err)
 		return
 	}
-
 	tempFile.Seek(0, io.SeekStart)
 
-	ratio, err := getVideoAspectRatio(tempFile.Name())
+	processedVideo, err := processVideoForFastStart(tempFile.Name())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "unable to encode video with faststart", err)
+		return
+	}
+
+	ratio, err := getVideoAspectRatio(processedVideo)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "unable to get aspect ratio of video", err)
 		println(err)
@@ -126,10 +131,13 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	// random string to use as file name
 	key := prefix + base64.RawURLEncoding.EncodeToString(randomSlice) + "." + extension
 
+	videoFile, _ := os.Open(processedVideo)
+	defer videoFile.Close()
+
 	_, err = cfg.s3Client.PutObject(r.Context(), &s3.PutObjectInput{
 		Bucket:      &cfg.s3Bucket,
 		Key:         &key,
-		Body:        tempFile,
+		Body:        videoFile,
 		ContentType: &mediatype,
 	})
 	if err != nil {
