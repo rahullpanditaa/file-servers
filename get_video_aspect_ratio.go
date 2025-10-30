@@ -14,7 +14,7 @@ func getVideoAspectRatio(filePath string) (string, error) {
 		"error",
 		"-print_format",
 		"json",
-		"-show_strems",
+		"-show_streams",
 		filePath)
 
 	b := bytes.Buffer{}
@@ -24,17 +24,19 @@ func getVideoAspectRatio(filePath string) (string, error) {
 		return "", fmt.Errorf("unable to run command: %v", err)
 	}
 
-	s := struct {
-		width  int
-		height int
-	}{}
+	var result struct {
+		Streams []struct {
+			Width  int `json:"width"`
+			Height int `json:"height"`
+		} `json:"streams"`
+	}
 
-	err = json.Unmarshal(b.Bytes(), &s)
+	err = json.Unmarshal(b.Bytes(), &result)
 	if err != nil {
 		return "", fmt.Errorf("unable to unmarshal stdout to a struct")
 	}
 
-	aspectRatio := float64(s.width) / float64(s.height)
+	aspectRatio := float64(result.Streams[0].Width) / float64(result.Streams[0].Height)
 
 	switch {
 	case aspectRatio >= 1.7 && aspectRatio <= 1.8:
