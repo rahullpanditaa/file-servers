@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -9,6 +10,9 @@ import (
 
 func (cfg *apiConfig) dbVideoToSignedVideo(video database.Video) (database.Video, error) {
 	videoURLSplit := strings.Split(*video.VideoURL, ",")
+	if len(videoURLSplit) != 2 {
+		return database.Video{}, fmt.Errorf("invalid video url: %v", *video.VideoURL)
+	}
 	bucket := videoURLSplit[0]
 	key := videoURLSplit[1]
 
