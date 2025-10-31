@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
@@ -95,13 +96,18 @@ func (cfg *apiConfig) handlerVideoGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	signedVideo, err := cfg.dbVideoToSignedVideo(video)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "unable to generate presigned url", err)
+	if video.VideoURL == nil || *video.VideoURL == "" {
+		log.Printf("video url is nil or empty for video ID: %v", video.ID)
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, signedVideo)
+	// signedVideo, err := cfg.dbVideoToSignedVideo(video)
+	// if err != nil {
+	// 	log.Printf("could not generate presigned url: %v\n", err)
+	// 	return
+	// }
+
+	respondWithJSON(w, http.StatusOK, video)
 }
 
 func (cfg *apiConfig) handlerVideosRetrieve(w http.ResponseWriter, r *http.Request) {
@@ -122,15 +128,15 @@ func (cfg *apiConfig) handlerVideosRetrieve(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	var signedVideos []database.Video
-	for _, vid := range videos {
-		signedVideo, err := cfg.dbVideoToSignedVideo(vid)
-		if err != nil {
-			respondWithError(w, http.StatusInternalServerError, "Couldn't generate presigned url", err)
-			return
-		}
-		signedVideos = append(signedVideos, signedVideo)
-	}
+	// signedVideos := []database.Video{}
+	// for _, vid := range videos {
+	// 	signedVideo, err := cfg.dbVideoToSignedVideo(vid)
+	// 	if err != nil {
+	// 		log.Printf("Skipping video %v: %v\n", vid.ID, err)
+	// 		continue
+	// 	}
+	// 	signedVideos = append(signedVideos, signedVideo)
+	// }
 
-	respondWithJSON(w, http.StatusOK, signedVideos)
+	respondWithJSON(w, http.StatusOK, videos)
 }

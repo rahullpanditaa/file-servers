@@ -110,18 +110,17 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	ratio, err := getVideoAspectRatio(processedVideo)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "unable to get aspect ratio of video", err)
-		println(err)
 		return
 	}
 
 	var prefix string
 	switch ratio {
 	case "16:9":
-		prefix = "/landscape/"
+		prefix = "landscape/"
 	case "9:16":
-		prefix = "/portrait/"
+		prefix = "portrait/"
 	case "other":
-		prefix = "/other/"
+		prefix = "other/"
 	}
 
 	// fill a 32 bit slice with random bytes
@@ -155,11 +154,16 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	signedVideo, err := cfg.dbVideoToSignedVideo(video)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "unable to generate presigned url", err)
-		return
-	}
+	// if video.VideoURL == nil || *video.VideoURL == "" {
+	// 	respondWithError(w, http.StatusInternalServerError, "video url nil or empty after upload", nil)
+	// 	return
+	// }
 
-	respondWithJSON(w, http.StatusOK, signedVideo)
+	// signedVideo, err := cfg.dbVideoToSignedVideo(video)
+	// if err != nil {
+	// 	respondWithError(w, http.StatusInternalServerError, "unable to generate presigned url", err)
+	// 	return
+	// }
+
+	respondWithJSON(w, http.StatusOK, video)
 }

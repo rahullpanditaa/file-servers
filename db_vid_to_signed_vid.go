@@ -9,16 +9,19 @@ import (
 )
 
 func (cfg *apiConfig) dbVideoToSignedVideo(video database.Video) (database.Video, error) {
-	videoURLSplit := strings.Split(*video.VideoURL, ",")
+	if video.VideoURL == nil || *video.VideoURL == "" {
+		return video, fmt.Errorf("video url is nil or empty")
+	}
+	videoURLSplit := strings.SplitN(*video.VideoURL, ",", 2)
 	if len(videoURLSplit) != 2 {
-		return database.Video{}, fmt.Errorf("invalid video url: %v", *video.VideoURL)
+		return database.Video{}, fmt.Errorf("invalid video url format")
 	}
 	bucket := videoURLSplit[0]
 	key := videoURLSplit[1]
 
-	url, err := generatePresignedURL(cfg.s3Client, bucket, key, time.Hour)
+	url, err := generatePresignedURL(cfg.s3Client, bucket, key, 5*time.Minute)
 	if err != nil {
-		return database.Video{}, err
+		return video, err
 	}
 
 	video.VideoURL = &url
