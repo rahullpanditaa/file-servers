@@ -128,7 +128,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	rand.Read(randomSlice)
 
 	// random string to use as file name
-	key := prefix + base64.RawURLEncoding.EncodeToString(randomSlice) + "." + extension
+	key := prefix + "/" + base64.RawURLEncoding.EncodeToString(randomSlice) + "." + extension
 
 	videoFile, _ := os.Open(processedVideo)
 	defer videoFile.Close()
@@ -144,26 +144,14 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	bucketKeyStr := fmt.Sprintf("%s,%s", cfg.s3Bucket, key)
-
-	video.VideoURL = &bucketKeyStr
+	cloudFrontURL := fmt.Sprintf("%s/%s", cfg.s3CfDistribution, key)
+	video.VideoURL = &cloudFrontURL
 	video.UpdatedAt = time.Now().UTC()
 
 	if err := cfg.db.UpdateVideo(video); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "unable to update video", err)
 		return
 	}
-
-	// if video.VideoURL == nil || *video.VideoURL == "" {
-	// 	respondWithError(w, http.StatusInternalServerError, "video url nil or empty after upload", nil)
-	// 	return
-	// }
-
-	// signedVideo, err := cfg.dbVideoToSignedVideo(video)
-	// if err != nil {
-	// 	respondWithError(w, http.StatusInternalServerError, "unable to generate presigned url", err)
-	// 	return
-	// }
 
 	respondWithJSON(w, http.StatusOK, video)
 }
