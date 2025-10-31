@@ -145,8 +145,10 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	updatedVideoURL := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", cfg.s3Bucket, cfg.s3Region, key)
-	video.VideoURL = &updatedVideoURL
+	bucketKeyStr := fmt.Sprintf("%s,%s", cfg.s3Bucket, key)
+
+	// updatedVideoURL := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", cfg.s3Bucket, cfg.s3Region, key)
+	video.VideoURL = &bucketKeyStr
 	video.UpdatedAt = time.Now().UTC()
 
 	if err := cfg.db.UpdateVideo(video); err != nil {
